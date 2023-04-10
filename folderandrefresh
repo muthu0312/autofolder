@@ -1,0 +1,100 @@
+import os
+import win32com.client
+import time
+from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
+
+# get today's date
+today = date.today()
+yesterday = today - timedelta(days=1)
+
+def refresh_excel_data_connections_and_pivot_tables(excel, file_path):
+    # Create a dummy Excel file
+    dummy_file_path = os.path.join(os.path.dirname(file_path), "dummy.xls")
+    with open(dummy_file_path, "w") as dummy_file:
+        dummy_file.write("")
+
+    try:
+        # Open the dummy Excel file
+        dummy_workbook = excel.Workbooks.Open(dummy_file_path)
+
+        # Open the Excel file
+        workbook = excel.Workbooks.Open(file_path)
+
+        # Close the dummy Excel file
+        dummy_workbook.Close(False)
+
+        # Disable background refresh for all data connections
+        for connection in workbook.Connections:
+            connection.OLEDBConnection.BackgroundQuery = False
+
+        # Refresh all data connections
+        workbook.RefreshAll()
+
+        # Refresh all Pivot Tables
+        for sheet in workbook.Worksheets:
+            for pivot_table in sheet.PivotTables():
+                pivot_table.RefreshTable()
+
+        # Save and close the Excel file
+        workbook.Save()
+        workbook.Close()
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Remove the dummy Excel file
+        os.remove(dummy_file_path)
+
+
+
+
+
+def send_files_as_email_attachments(file_paths):
+    # Create an Outlook application
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    namespace = outlook.GetNamespace("MAPI")
+
+    # Create a new email
+    email = outlook.CreateItem(0)
+    email.Subject = f'KGVT Program count summary - {yesterday}'
+    email.Body = "Hi All, <br> <br> Please find attached the KGVT analysis report for your reference."
+
+    # Add recipients (change the email addresses as needed)
+    email.To = "spiinternationalemeascheduling@xperi.com;spinascheduling@xperi.com"
+    email.CC = "NAManagers@xperi.com;suresh.kandsaamy@xperi.com"
+    email.SentOnBehalfOfName = "muthukumar.panchabekasan@straive.com"
+
+    # Attach the Excel files
+    for file_path in file_paths:
+        email.Attachments.Add(file_path)
+
+    # Send the email
+    email.Display()
+
+# Call the function for each Excel file
+
+
+
+
+
+
+# Start the Excel application
+excel = win32com.client.Dispatch("Excel.Application")
+excel.Visible = False  # Set to True if you want to see the Excel application while running
+excel.DisplayAlerts = False  # Disable confirmation dialogs
+
+# First file path
+file_path1 = r"C:\Users\e400284\Xperi\Premkumar Jaganathan (CTR) - SDL Report\kgvt-report\Time_analysis_kgvt-reports.xlsx"
+refresh_excel_data_connections_and_pivot_tables(excel, file_path1)
+print(f"File process completed '{file_path1}'")
+# Second file path
+file_path2 = r"C:\Users\e400284\Xperi\Premkumar Jaganathan (CTR) - SDL Report\kgvt-report\EMEA_KGVT-Report_new.xlsx"
+refresh_excel_data_connections_and_pivot_tables(excel, file_path2)
+print(f"File process completed '{file_path2}'")
+# Quit the Excel application
+excel.Quit()
+
+# Call the function for each Excel file
+send_files_as_email_attachments([file_path1, file_path2])
